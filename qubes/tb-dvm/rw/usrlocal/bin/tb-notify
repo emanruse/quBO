@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Monitor a log file for changes and display new lines as desktop notifications
+
+set -euo pipefail
+
+say()
+{
+	notify-send \
+		--expire-time 5000 \
+		--icon='/usr/share/icons/icon-pack-dist/torbrowser.png' \
+		"$(qubesdb-read /name)" \
+		"${1}"
+}
+
+readonly log='/tmp/ubo/tb-notifications.log'
+
+while inotifywait --event modify "${log}"; do
+	msg=$(tail --lines=1 "${log}")
+	grep -qE '^END$' <<< "${msg}" && break
+	[ -n "${msg}" ] && say "${msg}"
+done

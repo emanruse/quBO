@@ -1,0 +1,289 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+renice --priority 19 $$ > /dev/null 2>&1
+
+# TODO: Consider custom assets.json:
+#
+# https://github.com/uBlockOrigin/uBlock-issues/discussions/2846
+# https://github.com/uBlockOrigin/uBlock-issues/issues/3113
+
+readonly _extension_url='https://addons.mozilla.org/firefox/downloads/latest/ublock-origin/latest.xpi'
+readonly _assets_url='https://raw.githubusercontent.com/gorhill/uBlock/master/assets/assets.json'
+readonly _browser_qube='tb-dvm'
+
+readonly _storage_dir="${HOME}/ubo-assets"
+readonly _log="${_storage_dir}/${0##*/}.log"
+readonly _extension_file="${_storage_dir}/uBlock0@raymondhill.net.xpi"
+readonly _assets_file="${_storage_dir}/assets.json"
+
+readonly _filters_dir="${_storage_dir}/filters"
+readonly _cache_dir="${_storage_dir}/.etags"
+readonly _output_dir='/tmp/ubo/rw'
+readonly _tb_customizations_dir="${_output_dir}/usrlocal/share/tb-customizations"
+readonly _wanted_list_names='/usrlocal/etc/ubo-assets.conf'
+readonly _ubo_extension_dir="${_tb_customizations_dir}/tmp/ubo"
+readonly _ubo_combined_list="${_ubo_extension_dir}/filter-list.txt"
+
+rm -rf "${_output_dir}" "${_log}"
+
+(
+umask 0022
+mkdir \
+	--parents \
+	"${_filters_dir}" \
+	"${_cache_dir}" \
+	"${_tb_customizations_dir}"
+umask 0000
+mkdir \
+	--parents \
+	"${_ubo_extension_dir}"
+)
+
+# =============================================================================
+# Log all input to file
+# -----------------------------------------------------------------------------
+
+log()
+{
+	echo -e "$(date +'%Y-%m-%d %H:%M:%S'): ${*}" >> "${_log}"
+}
+
+# =============================================================================
+# Output message {1} with proper label, based on the result of {@}
+# -----------------------------------------------------------------------------
+
+saydo()
+{
+	local message="${1}"
+	shift
+
+	local no_color='\033[0m'
+	# Yellow on black background
+	local label_wait="\033[40m\033[1;33mWAIT${no_color}"
+
+	# Light green
+	local label_done="\033[1;32mDONE${no_color}"
+
+	# Light red
+	local label_fail="\033[1;31mFAIL${no_color}"
+
+	printf '[%b] %s' "${label_wait}" "${message}"
+	local output
+	set +e
+	output=$("${@}" 2>&1)
+	local exit_code="${?}"
+	set -e
+	if (( exit_code != 0 )); then
+		>&2 printf '\r\033[2K[%b] %s\n' "${label_fail}" "${message}"
+		log "[FAIL] (${exit_code}): ${message}"
+		if [ -n "${output}" ]; then
+			>&2 printf '\n%s\n' "${output}"
+			log "[FAIL] (output): ${output}"
+		fi
+		return "${exit_code}"
+	fi
+	printf '\r\033[2K[%b] %s\n' "${label_done}" "${message}"
+	log "[DONE] ${message}"
+	if [ -n "${output}" ]; then
+		printf '%s\n' "${output}"
+		log "[DONE] (output): ${output}"
+	fi
+}
+
+# =============================================================================
+# Get the URLs contained in section {3} of filter list {2} in JSON {1}
+# -----------------------------------------------------------------------------
+
+get_urls_from_json_section()
+{
+	local list_name="${1}"
+
+	# https://stackoverflow.com/a/1655389
+	# https://stackoverflow.com/a/56419345
+	# https://stackoverflow.com/a/29962258
+
+	local expression
+	expression=$(cat <<- EOF
+		."${list_name}"."contentURL", ."${list_name}"."cdnURLs"
+		| if   type=="string" then [.]
+		  elif type=="array"  then .
+		  else empty
+		  end
+		| .[]
+		| match("^https.+"; "g")
+		| .string
+		EOF
+	)
+	jq --raw-output "${expression}" "${_assets_file}"
+}
+
+# =============================================================================
+# uBO's asset.json contains some "internal" type of content (not for download)
+# This function checks if the list {2} in the JSON {1} is of "filters" type
+# -----------------------------------------------------------------------------
+
+is_filter_list()
+{
+	local list_name="${1}"
+
+	local expression
+	expression=$(cat <<- EOF
+		."${list_name}".content
+		| test("^filters$"; "g")
+		EOF
+	)
+	jq --raw-output "${expression}" "${_assets_file}"
+}
+
+# =============================================================================
+# Download file {1} from one of multiple alternative URLs {2}
+# -----------------------------------------------------------------------------
+
+download()
+{
+	local output_file="${1}"
+	local -a urls
+	mapfile -t urls <<< "${2}"
+
+	local url
+	local counter=0
+	local output
+	for url in "${urls[@]}"; do
+		(( ++counter ))
+		set +e
+		output=$(tor-download \
+			--file "${output_file}" \
+			--cache "$(get_cache_path "${url}")" \
+			"${url}" 2>&1) && return
+
+		set -e
+		log "Error: ${output}"
+	done
+	(saydo "Update $(basename "${output_file}"). See ${_log}" false) || true
+}
+
+# =============================================================================
+# Get the filepath storing the ETag for URL {1}
+# -----------------------------------------------------------------------------
+
+get_cache_path()
+{
+	local name
+	name=$(sha256sum <<< "${1}" | grep -Eo '^\S+')
+	echo "${_cache_dir}/${name}"
+}
+
+# =============================================================================
+# Deduplicate and combine uBlock Origin filter lists
+# uBO does its own additional atomization and deduplication
+# but this could hopefully shorten processing time
+# -----------------------------------------------------------------------------
+
+combine_lists()
+{
+	echo \
+		'! Title: All lists' \
+		> "${_ubo_combined_list}"
+
+	cat \
+		"${_filters_dir}"/* \
+		| sort --unique \
+		| grep --invert-match --extended-regexp '^!' \
+		>> "${_ubo_combined_list}"
+
+	chmod go+r "${_ubo_combined_list}"
+}
+
+# =============================================================================
+# Delete filter files which no longer appear in assets.json
+# -----------------------------------------------------------------------------
+
+delete_abandoned_filter_lists()
+{
+	local -a list_names
+	mapfile -t list_names < <(echo "${1}")
+
+	local -a existing_filter_files
+	mapfile -d '' \
+		existing_filter_files \
+		< <(find "${_filters_dir}" -type f -printf "%f\0")
+
+	local -a unused_list_files
+	mapfile -t unused_list_files \
+		< <(comm -23 \
+		<(printf '%s\n' "${existing_filter_files[@]}" | sort -u) \
+		<(printf '%s\n' "${list_names[@]}" | sort -u)
+	)
+
+	(
+	cd "${_filters_dir}"
+	local i
+	for i in "${unused_list_files[@]}"; do
+		rm -f "${i}"
+		rm -f "$(get_cache_path "${i}")"
+	done
+	)
+}
+
+# -----------------------------------------------------------------------------
+
+main()
+{
+	saydo \
+		'Update extension' \
+		download "${_extension_file}" "${_extension_url}"
+	cp "${_extension_file}" "${_ubo_extension_dir}"
+
+	saydo \
+		'Update assets.json' \
+		download "${_assets_file}" "${_assets_url}"
+
+	local list_names
+	list_names=$(jq --raw-output 'keys|.[]' "${_assets_file}")
+
+	if [ -s "${_wanted_list_names}" ]; then
+		list_names=$(comm -12 \
+			<(sort -u <<< "${list_names}") \
+			<(sort -u "${_wanted_list_names}")
+		)
+	fi
+	saydo \
+		'Delete abandoned filter lists' \
+		delete_abandoned_filter_lists \
+		"${list_names}"
+
+	mapfile -t list_names <<< "${list_names}"
+	readonly list_names
+
+	local list_name
+	local urls
+	local counter
+	for (( counter=0; counter < ${#list_names[@]}; counter++ )); do
+		list_name="${list_names[${counter}]}"
+		[[ $(is_filter_list "${list_name}") != true ]] && continue
+		# https://unix.stackexchange.com/a/137603
+		urls=$(get_urls_from_json_section "${list_name}" \
+			| sort -u \
+			| awk NF
+		)
+		printf \
+			'\r\033[2KUpdate filter lists: [%d/%d] %s' \
+			$((counter + 1)) \
+			"${#list_names[@]}" \
+			"${list_name}"
+
+		log "Update filter list ${list_name}"
+		download "${_filters_dir}/${list_name}" "${urls}"
+	done
+	echo -en '\r\033[2K'
+	saydo \
+		'Update filter lists' \
+		true
+	saydo \
+		'Combine lists' \
+		combine_lists
+
+	saydo 'Finished' true
+}
+main "${@}"

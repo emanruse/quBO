@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Tor browser + uBlock Origin configuration
+
+set -euo pipefail
+
+readonly ubo_workdir='/tmp/ubo'
+readonly log="${ubo_workdir}/tb-notifications.log"
+
+# =============================================================================
+# Log messages to a file. A separate notifier program, started at user login,
+# displays them as desktop notifications (the current script runs before xorg)
+# -----------------------------------------------------------------------------
+
+say()
+{
+	echo "${*}" >> "${log}"
+}
+
+# Remove NoScript
+rm \
+	--recursive \
+	--force \
+	/var/cache/tb-binary/.tb/tor-browser/Browser/distribution/extensions \
+	/var/cache/tb-binary/.tb/tor-browser/Browser/TorBrowser/Data/Browser/profile.default/extensions
+
+tb_customizations_dir='/usr/local/share/tb-customizations'
+cp \
+	--archive \
+	"${tb_customizations_dir}"/* \
+	/
+
+centralized_browser_cfg="${ubo_workdir}/browser-cfg.js"
+
+# For some reason the browser cannot read files if the owener is different from
+# the user running the browser. A bug?
+
+chown \
+	--recursive \
+	1000:1000 \
+	"${ubo_workdir}"
+
+# Initialize message log to allow background notifier to find it
+say
+
+# Prevent instant activation until uBO refreshes assets
+mv "${centralized_browser_cfg}" "${centralized_browser_cfg}_masked"
+
+# Firefox extensions cannot access file:// URI scheme
+# Run a simple HTTP server to allow uBO to update its assets
+
+server_ip_address='127.0.0.100'
+server_port='8080'
+server_log="${ubo_workdir}/log.txt"
+
+args=(
+	'-m' 'http.server' "${server_port}"
+	'--bind' "${server_ip_address}"
+	'--directory' "${ubo_workdir}"
+)
+
+sudo \
+	--user=nobody \
+	bash -c \
+	"python3 ${args[*]} > ${server_log} 2>&1" &
+
+# Terminate server upon successfull asset download
+
+search_string=$(cat <<- EOF
+	"GET /filter-list\.txt(\?.+)? HTTP/1\.1" 200 -
+	EOF
+)
+
+until inotifywait --event modify "${server_log}"; do
+	tail --lines=1 "${server_log}" | grep -qE "${search_string}" && break
+done
+
+# Give the browser a little time to download the file
+sleep 3
+pkill --full "python3 ${args[*]}"
+
+# Activate the centralized config
+mv "${centralized_browser_cfg}_masked" "${centralized_browser_cfg}"
+say 'Wait <b>1 minute</b> (or next message) before enabling JavaScript.'
+
+sleep 65
+say 'You can enable JavaScript.'
+sleep 1
+say 'END' # Terminate notifier
+sleep 1
+rm -rf "${ubo_workdir}"

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+qvm-run \
+	--quiet \
+	ubo \
+	ubo-update
+
+qvm-run \
+	--quiet \
+	ubo \
+	qvm-copy-to-vm tb-dvm /tmp/ubo/rw
+
+qvm-run \
+	--quiet \
+	tb-dvm \
+	sudo cp -R ~/QubesIncoming/ubo/rw /
+
+qvm-shutdown --quiet ubo
+qvm-shutdown --quiet tb-dvm

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+/rw/config/ram-drive-setup
+/rw/config/tb-customize

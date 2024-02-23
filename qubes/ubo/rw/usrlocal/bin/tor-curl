@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if [ $# -eq 0 ]; then
+	>&2 echo "Usage: ${0##*/} [options / URLs]"
+	exit 1
+fi
+
+# Based on Tor Browser's UA. Keep this up-to-date
+user_agent='Mozilla/5.0 (Windows NT 10.0; rv:109.0) Gecko/20100101 Firefox/115.0'
+
+# Tor browser cipher suites (in order of preference) as per ssllabs.com
+ciphers=(
+	'TLS_AES_128_GCM_SHA256'
+	'TLS_CHACHA20_POLY1305_SHA256'
+	'TLS_AES_256_GCM_SHA384'
+	'TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256'
+	'TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256'
+	'TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256'
+	'TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256'
+	'TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384'
+	'TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384'
+	# SSLLabs reports those as weak but they seem necessary
+	# for some sites (fsf.org). They are included in TB too,
+	# so add them to reduce fingerprinting
+	'TLS_RSA_WITH_AES_128_GCM_SHA256'
+	'TLS_RSA_WITH_AES_256_GCM_SHA384'
+)
+old_IFS="${IFS}"
+IFS=':'
+cipher_list="${ciphers[*]}"
+IFS="${old_IFS}"
+
+# Different SOCKS user and pass gives different circuit and exit relay
+# http://eweiibe6tdjsdprb4px6rqrzzcsi22m4koia44kc5pcjr7nec2rlxyad.onion/legacy/trac/-/wikis/doc/TorifyHOWTO/Misc
+
+set +e
+proxy_user=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 20)
+proxy_pass=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 20)
+set -e
+
+args=(
+	'--http2'
+	'--proxy' "socks5h://${proxy_user}:${proxy_pass}@127.0.0.1:9050"
+	'-A' "${user_agent}"
+	'-H' 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8'
+	'-H' 'Accept-Encoding: gzip, deflate, br'
+	'-H' 'Accept-Language: en-US,en;q=0.5'
+	'-H' 'Upgrade-Insecure-Requests: 1'
+	'-H' 'Cache-Control: no-cache'
+	'-H' 'Pragma: no-cache'
+	'-H' 'Sec-Fetch-Dest: document'
+	'-H' 'Sec-Fetch-Mode: navigate'
+	'-H' 'Sec-Fetch-Site: none'
+	'-H' 'Sec-Fetch-User: ?1'
+	'--location'
+	'--max-redirs' '5'
+	'--junk-session-cookies'
+	'--tlsv1.2'
+	# To reduce fingerprinting by making curl cipher list
+	# similar to Tor browser leave only this one for TLS 1.2
+	# This works together with WolfSSL backend (see below)
+	'--ciphers' 'NULL-SHA256'
+	'--tls13-ciphers' "${cipher_list}"
+	'--compressed'
+	"$@"
+)
+
+# So that only explicitly set ciphers are used
+export CURL_SSL_BACKEND='wolfssl'
+/usr/bin/curl "${args[@]}"

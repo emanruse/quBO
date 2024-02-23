@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if [ $# -eq 0 ]; then
+	cat >&2 <<-EOF
+	Usage: ${0##*/} -f <output_file> -c <cachefile> URL
+	 -c, --cache <etag_file> Local ETag (or timestamp) file
+	 -f, --file <file>       Save to this file
+	Multiple URLs means to try other locations on failure.
+	EOF
+	exit 1
+fi
+
+while : ; do
+	case "${1}" in
+		-f | --file)
+			if [[ "${2}" == '--' ]]; then
+				>&2 echo 'Option --file:' 'Filename is required'
+				exit 1
+			fi
+			readonly _file="${2}"
+			shift 2
+			;;
+		-c | --cache)
+			readonly _cachefile="${2}"
+			shift 2
+			;;
+		--) # End of all options
+			shift
+			break;
+			;;
+		-*)
+			>&2 echo 'Unknown option:' "${1}"
+			exit 1
+			;;
+		*)  # No more options
+			break
+			;;
+	esac
+done
+
+readonly _url="${1}"
+
+# =============================================================================
+# Tor download from URL {1} to file {2} using optional cachefile {3}
+# -----------------------------------------------------------------------------
+download()
+{
+	local url="${1}"
+	local output="${2}"
+	# Using a temp file helps to prevent deletion of existing older files
+	# on failure in current download
+	local temp_output
+	temp_output=$(mktemp \
+		--tmpdir=/tmp \
+		--dry-run \
+		"$(basename -- "${output}").XXXXXX")
+
+	# cURL will use cache file's modification time to check if the remote
+	# file has been modified. The same file also stores the last retrieved
+	# ETag (if it was sent by the server during the previous download)
+	local cachefile="${3}"
+
+	local -a args
+	args=(
+		"${url}"
+		'--output' "${temp_output}"
+		'--fail'
+		'--silent'
+		'--show-error'
+		'--connect-timeout' 15
+		'--max-time' 120
+	)
+
+	local old_cache_timestamp=''
+	if [ -r "${cachefile}" ]; then
+		# Use UTC to avoid revealing the timezone to the server
+		old_cache_timestamp=$(date --utc --reference "${cachefile}")
+		args+=('--time-cond' "${cachefile}")
+		[ -s "${cachefile}" ] && args+=('--etag-compare' "${cachefile}")
+	fi
+	args+=('--etag-save' "${cachefile}")
+
+	local curl_message
+	local exit_code
+	set +e # Prevent termination due to non-200 HTTP codes
+	curl_message=$(tor-curl "${args[@]}" 2>&1 > /dev/null)
+	exit_code="$?"
+	set -e
+
+	# https://github.com/curl/curl/issues/3206#issuecomment-437625637
+	if (( exit_code == 92 )); then
+		warning "${output##*/}:" 'Applying workaround for curl (92)'
+		args+=('--http1.1')
+		set +e
+		curl_message=$(tor-curl "${args[@]}" 2>&1 > /dev/null)
+		exit_code="$?"
+		set -e
+	fi
+	if (( exit_code == 0 )); then
+		if [ -s "${temp_output}" ]; then
+			mv "${temp_output}" "${output}"
+			rm -f "${temp_output}"
+		fi
+		return 0
+	fi
+
+	# On error delete the partial file
+	# Do not resume for privacy reasons
+	rm -f "${temp_output}"
+
+	# Also restore the timestamp of the cache file
+	# because --save-etag will update it despite errors
+	if [[ -n "${old_cache_timestamp}" && -w "${cachefile}" ]]; then
+		touch --date="${old_cache_timestamp}" "${cachefile}"
+	fi
+	rm -f "${cachefile}"
+
+	>&2 echo "${output##*/}:" "${curl_message}"
+	return $((exit_code))
+}
+
+main()
+{
+	download "${_url}" "${_file}" "${_cachefile}"
+}
+main "${@}"

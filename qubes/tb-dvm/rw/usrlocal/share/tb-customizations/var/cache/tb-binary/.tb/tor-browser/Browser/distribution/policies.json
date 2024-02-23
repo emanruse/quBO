@@ -1,0 +1,222 @@
+{
+  "policies": {
+    "3rdparty": {
+      "Extensions": {
+	"uBlock0@raymondhill.net": {
+	  "adminSettings": {
+	    "selectedFilterLists": [
+	      "user-filters",
+	      "http://127.0.0.100:8080/filter-list.txt"
+	    ],
+	    "whitelist": [
+	      "about-scheme",
+	      "moz-extension-scheme"
+	    ],
+	    "dynamicFilteringString": "* * * block\n* * inline-script block\n* * 1p-script block\n* * 3p-script block\n* * 3p-frame block\n* * image block\n* * 3p block\nbehind-the-scene * * block",
+	    "urlFilteringString": "",
+	    "hostnameSwitchesString": "no-popups: * true\nno-remote-fonts: * true\nno-large-media: * true\nno-csp-reports: * true\nno-scripting: * true",
+	    "userFilters": "! For better privacy, even if fonts are enabled:\n*$font,third-party\n\n! Info: https://csstracking.dev/\n*$stylesheet\n*$document,csp=style-src\n"
+	  },
+	  "userSettings": [
+	    ["advancedUserEnabled", "true"],
+	    ["autoUpdate", "false"],
+	    ["externalLists",
+	      "http://127.0.0.100:8080/filter-list.txt"
+	    ],
+	    ["importedLists",
+	      ["http://127.0.0.100:8080/filter-list.txt"]
+	    ],
+	    ["largeMediaSize", "0"],
+	    ["popupPanelSections", "63"]
+	  ],
+	  "advancedSettings": [
+	    ["blockingProfiles", "11111/#F00 11011/#C0F 11001/#00F 11111"]
+	  ]
+	}
+      }
+    },
+    "DefaultDownloadDirectory": "/tmp/download",
+    "DisableAppUpdate": true,
+    "DisableBuiltinPDFViewer": true,
+    "DisableFeedbackCommands": true,
+    "DisableFirefoxStudies": true,
+    "DisableFirefoxScreenshots": true,
+    "DisableFormHistory": true,
+    "DisableSystemAddonUpdate": true,
+    "DisableTelemetry": true,
+    "DisplayBookmarksToolbar": "never",
+    "DontCheckDefaultBrowser": true,
+    "ExtensionSettings": {
+      "*": {
+	"blocked_install_message": "Extension installation blocked",
+	"installation_mode": "blocked",
+	"allowed_types": ["extension"]
+      },
+      "uBlock0@raymondhill.net": {
+	"installation_mode": "force_installed",
+	"install_url": "file:///tmp/ubo/uBlock0@raymondhill.net.xpi"
+      }
+    },
+    "ExtensionUpdate": false,
+    "FirefoxHome": {
+      "Search": false,
+      "TopSites": false,
+      "SponsoredTopSites": false,
+      "Highlights": false,
+      "Pocket": false,
+      "SponsoredPocket": false,
+      "Snippets": false,
+      "Locked": true
+    },
+    "FirefoxSuggest": {
+      "WebSuggestions": false,
+      "SponsoredSuggestions": false,
+      "ImproveSuggest": false,
+      "Locked": true
+    },
+    "Homepage": {
+      "URL": "about:blank",
+      "Locked": true,
+      "StartPage": "homepage-locked"
+    },
+    "InstallAddonsPermission": {
+      "Default": false
+    },
+    "NoDefaultBookmarks": true,
+    "PDFjs": {
+      "Enabled": false
+    },
+    "Permissions": {
+      "Camera": {
+	"BlockNewRequests": true,
+	"Locked": true
+      },
+      "Microphone": {
+	"BlockNewRequests": true,
+	"Locked": true
+      },
+      "Location": {
+	"BlockNewRequests": true,
+	"Locked": true
+      },
+      "Notifications": {
+	"BlockNewRequests": true,
+	"Locked": true
+      },
+      "Autoplay": {
+	"BlockNewRequests": true,
+	"Locked": true
+      }
+    },
+    "Preferences": {
+      "accessibility.blockautorefresh": {
+	"Value": true,
+	"Status": "user"
+      },
+      "browser.aboutConfig.showWarning": {
+	"Value": false,
+	"Status": "user"
+      },
+      "browser.chrome.site_icons": {
+	"Value": false,
+	"Status": "user"
+      },
+      "browser.download.showTorWarning": {
+	"Value": false,
+	"Status": "user"
+      },
+      "browser.download.useDownloadDir": {
+	"Value": false,
+	"Status": "user"
+      },
+      "browser.new_identity.confirm_newnym": {
+	"Value": false,
+	"Status": "user"
+      },
+      "browser.search.hiddenOneOffs": {
+	"Value": "4. Northboot",
+	"Status": "user"
+      },
+      "browser.uiCustomization.state": {
+	"Value": "{\"placements\":{\"widget-overflow-fixed-list\":[],\"unified-extensions-area\":[],\"nav-bar\":[\"back-button\",\"forward-button\",\"stop-reload-button\",\"urlbar-container\",\"downloads-button\",\"fxa-toolbar-menu-button\",\"ublock0_raymondhill_net-browser-action\",\"unified-extensions-button\"],\"toolbar-menubar\":[\"menubar-items\"],\"TabsToolbar\":[\"firefox-view-button\",\"tabbrowser-tabs\",\"new-tab-button\",\"alltabs-button\"],\"PersonalToolbar\":[\"import-button\",\"personal-bookmarks\"]},\"seen\":[\"ublock0_raymondhill_net-browser-action\",\"developer-button\"],\"dirtyAreaCache\":[\"nav-bar\",\"unified-extensions-area\",\"PersonalToolbar\"],\"currentVersion\":19,\"currentVersionBaseBrowser\":2,\"currentVersionTorBrowser\":1,\"newElementCount\":0}",
+	"Status": "user"
+      },
+      "browser.warnOnQuitShortcut": {
+	"Value": false,
+	"Status": "user"
+      },
+      "extensions.unifiedExtensions.enabled": {
+	"Value": false,
+	"Status": "user"
+      },
+      "intl.language_notification.shown": {
+	"Value": true,
+	"Status": "user"
+      },
+      "network.proxy.no_proxies_on": {
+	"Value": "127.0.0.100:8080",
+	"Status": "user"
+      },
+      "pref.downloads.disable_button.edit_actions": {
+	"Value": false,
+	"Status": "user"
+      }
+    },
+    "SearchEngines": {
+      "Remove": [
+	"DuckDuckGo",
+	"DuckDuckGoOnion",
+	"YouTube",
+	"Google",
+	"Startpage",
+	"Twitter",
+	"Yahoo",
+	"Wikipedia (en)"
+      ],
+      "Add": [
+	{
+	  "Name": "1. PrivAU",
+	  "URLTemplate": "http://privateoz3u5utrimal2edr56j3r5caakektxxgixigdkycuxigvquid.onion/search",
+	  "Method": "POST",
+	  "IconURL": "http://privateoz3u5utrimal2edr56j3r5caakektxxgixigdkycuxigvquid.onion/static/themes/simple/img/favicon.png",
+	  "PostData": "q={searchTerms}",
+	  "SuggestURLTemplate": "http://privateoz3u5utrimal2edr56j3r5caakektxxgixigdkycuxigvquid.onion/autocompleter?q={searchTerms}",
+	  "Encoding": "UTF-8"
+	},
+	{
+	  "Name": "4. Northboot",
+	  "URLTemplate": "http://4n53nafyi77iplnbrpmxnp3x4exbswwxigujaxy3b37fvr7bvlopxeyd.onion/search?q={searchTerms}",
+	  "Method": "GET",
+	  "IconURL": "http://4n53nafyi77iplnbrpmxnp3x4exbswwxigujaxy3b37fvr7bvlopxeyd.onion/static/themes/simple/img/favicon.png",
+	  "SuggestURLTemplate": "http://4n53nafyi77iplnbrpmxnp3x4exbswwxigujaxy3b37fvr7bvlopxeyd.onion/autocompleter?q={searchTerms}",
+	  "Encoding": "UTF-8"
+	},
+	{
+	  "Name": "2. Tiekoetter",
+	  "URLTemplate": "http://searx3aolosaf3urwnhpynlhuokqsgz47si4pzz5hvb7uuzyjncl2tid.onion/search?q={searchTerms}",
+	  "Method": "GET",
+	  "IconURL": "http://searx3aolosaf3urwnhpynlhuokqsgz47si4pzz5hvb7uuzyjncl2tid.onion/static/themes/simple/img/favicon.png",
+	  "SuggestURLTemplate": "http://searx3aolosaf3urwnhpynlhuokqsgz47si4pzz5hvb7uuzyjncl2tid.onion/autocompleter?q={searchTerms}",
+	  "Encoding": "UTF-8"
+	},
+	{
+	  "Name": "3. Demoniak",
+	  "URLTemplate": "https://search.demoniak.ch/search?q={searchTerms}",
+	  "Method": "GET",
+	  "IconURL": "https://search.demoniak.ch/static/themes/simple/img/favicon.png",
+	  "SuggestURLTemplate": "https://search.demoniak.ch/autocompleter?q={searchTerms}",
+	  "Encoding": "UTF-8"
+	}
+      ],
+      "Default": "4. Northboot",
+      "PreventInstalls": true,
+      "SearchSuggestEnabled": false
+    },
+    "WebsiteFilter": {
+      "Block": ["file://*/*"],
+      "Exceptions": [
+	"file:///tmp/ubo/browser-cfg.js"
+      ]
+    }
+  }
+}

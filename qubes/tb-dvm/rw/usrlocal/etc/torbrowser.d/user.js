@@ -1,0 +1,10 @@
+user_pref("devtools.cache.disabled", true);
+user_pref("findbar.highlightAll", true);
+user_pref("javascript.enabled", false);
+user_pref("privacy.prioritizeonions.enabled", true);
+user_pref("reader.content_width", 9);
+user_pref("reader.font_size", 9);
+user_pref("reader.font_type", "serif");
+user_pref("browser.security_level.security_custom", false);
+user_pref("browser.security_level.security_slider", 1);
+user_pref("toolkit.zoomManager.zoomValues", ".3,.5,.67,.8,.9,1,1.5,1.7,2,2.4,3,4,5");

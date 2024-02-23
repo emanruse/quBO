@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# =============================================================================
+# Create a RAM drive based on free memory. Everything is calculated in KiB
+# -----------------------------------------------------------------------------
+
+free_memory=$(grep MemFree /proc/meminfo | grep -Eo '[0-9]+')
+total_memory=$(grep MemTotal /proc/meminfo | grep -Eo '[0-9]+')
+
+# Prevent deadlock
+# https://www.kernel.org/doc/html/latest/filesystems/tmpfs.html
+min_free_memory=$(( 1024 * 1024 ))
+min_tmp_size=$(( 512 * 1024 ))
+
+(( min_tmp_size >= total_memory )) && exit
+
+tmp_size=$(( free_memory - min_free_memory ))
+(( tmp_size < min_tmp_size )) && tmp_size="${min_tmp_size}"
+
+mount -o remount,size="${tmp_size}K" /tmp
+
+# =============================================================================
+# Configure default dirs to use RAM drive
+# -----------------------------------------------------------------------------
+
+uid=1000
+username=$(id -un ${uid})
+
+download_dir='/tmp/download'
+old_cache_dir="/home/${username}/.cache"
+new_cache_dir='/tmp/.cache'
+
+# Just in case one has forgotten to remove it
+rm \
+	--recursive \
+	--force \
+	"/home/${username}/QubesIncoming"
+
+sudo \
+	--user=#"${uid}" \
+	mkdir \
+	--parents \
+	--mode=700 \
+	"${download_dir}" \
+	"${new_cache_dir}" \
+	"${old_cache_dir}"
+
+ln \
+	--symbolic \
+	--force \
+	--no-target-directory \
+	"${download_dir}" \
+	"/home/${username}/QubesIncoming"
+
+mount \
+	--bind \
+	"${new_cache_dir}" \
+	"${old_cache_dir}"
