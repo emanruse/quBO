@@ -15,7 +15,7 @@
 	    "dynamicFilteringString": "* * * block\n* * inline-script block\n* * 1p-script block\n* * 3p-script block\n* * 3p-frame block\n* * image block\n* * 3p block\nbehind-the-scene * * block",
 	    "urlFilteringString": "",
 	    "hostnameSwitchesString": "no-popups: * true\nno-remote-fonts: * true\nno-large-media: * true\nno-csp-reports: * true\nno-scripting: * true",
-	    "userFilters": "! For better privacy, even if fonts are enabled:\n*$font,third-party\n\n! Info: https://csstracking.dev/\n*$stylesheet\n*$document,csp=style-src\n"
+	    "userFilters": "! For better privacy, even if fonts are enabled:\n*$font,third-party\n\n! Info: https://csstracking.dev/\n*$stylesheet\n*$document,csp=style-src\n\n! Block base64 encoded data\n*##[src^=\"data:\"]\n"
 	  },
 	  "userSettings": [
 	    ["advancedUserEnabled", "true"],
